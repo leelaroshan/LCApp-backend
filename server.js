@@ -38,6 +38,7 @@ const io = require("socket.io")(server,{
 
 let connectedUsers = {}
 io.on('connection',(socket)=>{
+console.log('connecti')
    
 socket.on('join', (userId) => {
     console.log(userId);
