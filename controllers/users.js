@@ -2,10 +2,10 @@
 
 const mongoose = require('mongoose');
 const User = require('../models/User');
+const Level = require('../models/Level');
 
 
-
-
+const { ObjectId } = mongoose.Types;
 
 
 const getUsers = async (req,res)=> {
@@ -34,7 +34,7 @@ const getUser =async (req,res)=> {
   try{
 
     const {id} = req.params;
-    const users = await User.findById(id);
+    const users = await User.findById(id).populate({ path: 'languages', populate: 'level' });
    res.send({
      success:true,
      data:users,
@@ -49,13 +49,19 @@ const getUser =async (req,res)=> {
 const createUser = async (req, res) => {
   try {
     const { userName, email, password, languages } = req.body;
+
+    
     const user = await User.create({ userName, email, password, languages });
 
-    res.json({
-      msg: `user with id ${user.id}`,
-      success: true,
-      data: user
-    })
+     // create token
+     const token = user.getSignedJwtToken();
+
+     res.json({ 
+       success: true, token,
+      data: user,
+      msg: `new user added with this id ${user.id}`
+     })
+
   } catch(err) {
     console.log(err)
   }
@@ -63,21 +69,60 @@ const createUser = async (req, res) => {
 
 
 
+const searchUser =async (req,res)=> {
 
-/*
+ 
+  try{
+
+    const { lang, nativeLang } = req.query;
+    // user whose native language is 'lang' && wants to learn 'nativeLang'
+    // || user who wants to learn 'lang' && 'lang' is not his native language
+    
+    const users = await User.find().populate({ path: 'languages', populate: 'level'});
+
+    const filteredUsers = users.filter(user => {
+      let wantsNativeLang = false;
+      let currLangIsLang = false;
+      let langIsNative = false;
+
+      user.languages.forEach(language => {
+        if (language.level.step === 5 && language.name.toLowerCase() === nativeLang.toLowerCase()) (wantsNativeLang = true);
+        else if (language.name.toLowerCase() === lang.toLowerCase()) (currLangIsLang = true);
+
+        if (language.level.step === 5 && language.name.toLowerCase() === lang.toLowerCase()) (langIsNative = true);
+      });
+
+      return wantsNativeLang && currLangIsLang || !langIsNative && currLangIsLang;
+    });
+    
+   res.send({
+     success: true,
+     data: filteredUsers,
+     msg: 'show all users based on  practice language'
+   })
+  
+  }catch(err){
+    console.log(err)
+  
+  }
+}
+
+
+
+
 const updateUser = async (req, res) => {
   try {
   const { id } = req.params;
-   const { firstName, lastName, age,hobbies } = req.body;
+   const { userName, email, password, languages } = req.body;
 
   const user = await User.findByIdAndUpdate(id,
-     {firstName,lastName,age,hobbies},
+     {userName,email,password,languages},
      {new:true})
      
   res.json({
     msg: `update user with id ${id}`,
     success: true,
-  data: user
+    data: user
 
    });
 
@@ -89,7 +134,7 @@ catch(err){
   
 }
 
-*/
+
 
 
 
@@ -107,20 +152,26 @@ const login =async (req,res)=> {
       return;
     }
 
-    const user = await User.findOne({email:email, password:password});
+    const user = await User.findOne({ email:email });
 
     if (!user) {
-      res.status(401).send('Invalid credentials')
+      res.status(401).send('user does not exit')
       return;
     }
 
-   
+    const doesPassMatch = await user.matchPassword(password);
+    if (!doesPassMatch) {
+      res.status(401).send("password wrong");
+      return;
+    }
 
-   res.send({
-     success:true,
-     data:user,
-     msg: 'show all users'
-   })
+    const token = user.getSignedJwtToken();
+
+    res.json({ 
+      success: true, token,
+      msg: 'user logged in',
+      data:user, })
+
   
   }catch(err){
     console.log(err)
@@ -135,6 +186,8 @@ module.exports={
   getUser,
   getUsers,
   createUser,
+  updateUser,
+  searchUser,
   login
  
   

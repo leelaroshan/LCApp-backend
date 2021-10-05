@@ -48,7 +48,7 @@ const createLevel = async (req, res) => {
     const levels = await Level.create({ name, step });
 
     res.json({
-      msg: `user with id ${user.id}`,
+      msg: `user with id ${levels.id}`,
       success: true,
       data: levels
     })
