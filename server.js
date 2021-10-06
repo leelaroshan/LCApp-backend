@@ -28,13 +28,12 @@ app.use(cors());
 
 const PORT = process.env.PORT || 5000;
 
-const io = require("socket.io")(server,{
-    cors:{
-        origin: "https://keen-meitner-550697.netlify.app/",
-        method: ["GET","POST"],
-        credentials: true
-    }
-})
+const io = require("socket.io")(server, {
+  allowRequest: (req, callback) => {
+    const noOriginHeader = req.headers.origin === undefined;
+    callback(null, noOriginHeader);
+  }
+});
 
 
 let connectedUsers = {}
